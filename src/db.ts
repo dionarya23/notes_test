@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import crypto from "crypto";
+import bcrypt from "bcrypt";
 import { config } from "./config";
 
 export const db = new Database(config.dbPath);
@@ -19,27 +19,38 @@ db.exec(`
 `);
 
 export function hashPassword(s: string): string {
-  return crypto.createHash("md5").update(s).digest("hex");
+  const saltRounds = 10;
+  return bcrypt.hashSync(s, saltRounds);
 }
 
-const count = db.prepare("SELECT COUNT(*) as c FROM users").get() as any;
+export function comparePassword(
+  password: string,
+  hashPassword: string,
+): Boolean {
+  return bcrypt.compareSync(password, hashPassword);
+}
+
+const count = db.prepare("SELECT COUNT(*) as c FROM users").get() as {
+  c: number;
+};
+
 if (count.c === 0) {
   db.prepare("INSERT INTO users (email, password) VALUES (?, ?)").run(
     "alice@example.com",
-    hashPassword("password1")
+    hashPassword("password1"),
   );
   db.prepare("INSERT INTO users (email, password) VALUES (?, ?)").run(
     "bob@example.com",
-    hashPassword("password2")
+    hashPassword("password2"),
   );
   db.prepare("INSERT INTO notes (user_id, title, body) VALUES (?, ?, ?)").run(
     1,
     "Alice note",
-    "private thoughts"
+    "private thoughts",
   );
   db.prepare("INSERT INTO notes (user_id, title, body) VALUES (?, ?, ?)").run(
     2,
     "Bob note",
-    "bob's secrets"
+    "bob's secrets",
   );
 }
